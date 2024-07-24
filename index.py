@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 BUCKET = "noaa-jpss"
 PREFIX = "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/"
-PATTERN = ["GLB096", "GLB097"]
+PATTERN = ["GLB085", "GLB086"]
 HEADERS = ["Filenames", "Year"]
 
 
@@ -38,15 +38,15 @@ class ObjectWrapper:
 
 yearly_prefixes = [
     "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2012/",
-    # "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2013/",
-    # "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2014/",
-    # "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2015/",
-    # "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2016/",
-    # "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2017/",
-    # "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2018/",
-    # "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2019/",
-    # "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2020/",
-    # "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2023/",
+    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2013/",
+    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2014/",
+    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2015/",
+    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2016/",
+    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2017/",
+    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2018/",
+    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2019/",
+    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2020/",
+    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2023/",
 ]
 
 month_list = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
