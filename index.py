@@ -3,60 +3,51 @@ import os
 import boto3
 import calendar
 import csv
-from botocore.exceptions import ClientError
-from datetime import datetime
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
+# S3 Bucket
 BUCKET = "noaa-jpss"
+
+# Base path prefix for s3 bucket where data is available
 PREFIX = "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/"
+
+# Grid patterns to filter objects from the bucket list
 PATTERN = ["GLB085", "GLB086"]
-HEADERS = ["Filenames", "Year"]
 
+# CSV Headers
+HEADERS = ["Filenames"]
 
-class ObjectWrapper:
-    def __init__(self, s3_object) -> None:
-        self.object = s3_object
-        self.key = self.object.key
+# yearly_prefixes = [
+# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2012/",
+# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2013/",
+# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2014/",
+# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2015/",
+# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2016/",
+# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2017/",
+# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2018/",
+# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2019/",
+# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2020/",
+# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2023/",
+# ]
 
-    @staticmethod
-    def list(bucket, prefix=None):
-        try:
-            if not prefix:
-                objects = list(bucket.objects.all())
-            else:
-                objects = list(bucket.objects.filter(Prefix=prefix))
-            logger.info(
-                "Got objects %s from bucket '%s'", [o.key for o in objects], bucket.name
-            )
-        except ClientError:
-            logger.exception("Could not get objects for bucket '%s'", bucket.name)
-            raise
-        else:
-            return objects
-
-
-yearly_prefixes = [
-    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2012/",
-    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2013/",
-    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2014/",
-    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2015/",
-    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2016/",
-    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2017/",
-    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2018/",
-    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2019/",
-    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2020/",
-    "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2023/",
-]
-
-month_list = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
-
+# list of every fice days in a month
 days = [5, 10, 15, 20, 25, 30]
 
+# S3 client for API operations
 client = boto3.client("s3")
 
 
-def prefix_list(prefix):
+def prefix_list(prefix: str):
+    """Retrieves list of sub folders for a given folder in a s3 bucket
+
+    Args:
+        prefix (str): folder prefix in a s3 bucket
+
+    Returns:
+        list: list of sub folders
+    """
     response = client.list_objects_v2(
         Bucket=BUCKET,
         Prefix=prefix,
@@ -68,13 +59,29 @@ def prefix_list(prefix):
     return prefixes
 
 
-def folder_path(prefix):
-    (abs_path, file_name) = os.path.split(prefix)
+def folder_path(prefix: str):
+    """Retrieves folder name from s3 bucket folder path
+
+    Args:
+        prefix (str): Folder path
+
+    Returns:
+        str: Folder name from a given path
+    """
+    (abs_path, _) = os.path.split(prefix)
     dir = os.path.basename(abs_path)
     return dir
 
 
-def list_objects(prefix):
+def list_objects(prefix: str):
+    """Retrieves a list of s3 objects in a given folder
+
+    Args:
+        prefix (str): Folder path
+
+    Returns:
+        list: List of s3 objects
+    """
     response = client.list_objects_v2(
         Bucket=BUCKET,
         Prefix=prefix,
@@ -86,7 +93,14 @@ def list_objects(prefix):
     return objects
 
 
-def extract_filenames_with_pattern(date: datetime):
+def extract_s3_objects(date: datetime):
+    """Constructs prefix from a given datetime object to retrieve s3 objects
+    Args:
+        date (datetime): Datetime for construct sub folder path
+
+    Returns:
+        list: List of s3 objects for a given datetime object
+    """
     print("Extracting file patterns ", PATTERN, " for given date: ", date.date())
     prefix = (
         PREFIX
@@ -98,7 +112,35 @@ def extract_filenames_with_pattern(date: datetime):
         + "/"
     )
     objects = list_objects(prefix)
+    return objects
+
+
+def extract_filenames_with_pattern(date: datetime):
+    """_summary_
+
+    Args:
+        date (datetime): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    objects = extract_s3_objects(date)
     filtered_list = []
+
+    if len(objects) <= 0:
+        print("Files not found for given date: ", date.date())
+        prev_day = date - timedelta(days=1)
+        if date.day < calendar.monthrange(date.year, date.month)[1]:
+            next_day = date + timedelta(days=1)
+            print("Extracting files for next date: ", next_day.date())
+            objects = extract_s3_objects(next_day)
+            if len(objects) <= 0:
+                print("Files not found for next available date: ", next_day.date())
+                objects = extract_s3_objects(prev_day)
+        else:
+            print("Extracting files for previous date: ", prev_day.date())
+            objects = extract_s3_objects(prev_day)
+
     for pat in PATTERN:
         matched = [os.path.basename(obj).split(".")[0] for obj in objects if pat in obj]
         filtered_list.extend(matched)
@@ -113,19 +155,37 @@ def extract_filenames_with_pattern(date: datetime):
     return filtered_list
 
 
-def export_to_csv(data: list, year: int = None):
-    mode = "w" if not year else "a"
-    with open("filenames.csv", mode, newline="") as file:
-        writer = csv.writer(file)
-        if year:
-            for filename in data:
-                writer.writerow([filename, year])
-        else:
-            writer.writerow(data)
+def export_to_csv(data: list, year: int = None, month: int = None):
+    """
+    Export filenames to a csv file for analysis. If year and month are supplied
+    filenams are appended to csv file otherwise headers are appended at the beginnign of the file.
+
+    Args:
+        data (list): List of filenames
+        year (int, optional): Year to which filenames belongs to. Defaults to None.
+        month (int, optional): Month to which filenames belongs to. Defaults to None.
+    """
+    if len(data) > 0:
+        mode = "w" if not year else "a"
+        with open("filenames.csv", mode, newline="") as file:
+            writer = csv.writer(file)
+            if not year:
+                writer.writerow(data)
+            else:
+                yyyymm = f"{year}{str(month).zfill(2)}"
+                writer.writerow([yyyymm])
+                for filename in data:
+                    writer.writerow([filename])
 
 
 def every_fifth_day_of_every_month_in_a_year(year: int):
-    filenames = []
+    """
+    Calculates every 5th day of every month in a year.
+    This helps in constructing prefixes for every 5 days.
+
+    Args:
+        year (int): Year on which 5 day periods are calculated
+    """
 
     # Retrieves monthly prefixes from S3 bucket for a given year
     monthly_prefixes = prefix_list(PREFIX + str(year) + "/")
@@ -134,6 +194,7 @@ def every_fifth_day_of_every_month_in_a_year(year: int):
     months = [int(folder_path(prefix)) for prefix in monthly_prefixes]
 
     for month in months:
+        filenames = []
         for day in days:
             try:
                 # Calculate every fifthe day of the month
@@ -142,32 +203,22 @@ def every_fifth_day_of_every_month_in_a_year(year: int):
                 # Handles fifth day for the month of February
                 last_day = calendar.monthrange(year, month)
                 current_date = datetime(year, month, last_day[1])
-            # five_day_list.append(current_date)
             extracted = extract_filenames_with_pattern(current_date)
             filenames.extend(extracted)
-    export_to_csv(filenames, year)
+        print(f"Exporting data for yyyymm: {year}{month}")
+        export_to_csv(filenames, year, month)
 
 
-def usage():
+def execute():
+    """
+    Starts the script to retrieve grid filenames for sudan flood analysis
+    """
     export_to_csv(HEADERS)
-    # client = boto3.client("s3")
-    # response = client.list_objects_v2(
-    #     Bucket="noaa-jpss",
-    #     Prefix="JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/",
-    #     Delimiter="/",
-    # )
-    years = []
-    # if "CommonPrefixes" in response:
-    #     yearly_prefixes = [prefix["Prefix"] for prefix in response["CommonPrefixes"]]
-    #     for prefix in yearly_prefixes:
-    #         year = folder_path(prefix)
-    #         years.append(year)
-    #         print(prefix)
+    yearly_prefixes = prefix_list(PREFIX)
     for prefix in yearly_prefixes:
         year = int(folder_path(prefix))
-        years.append(year)
         every_fifth_day_of_every_month_in_a_year(year)
 
 
 if __name__ == "__main__":
-    usage()
+    execute()
