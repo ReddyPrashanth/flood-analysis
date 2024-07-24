@@ -9,41 +9,30 @@ from conf import config
 client = boto3.client("s3")
 
 
-def prefix_list(prefix: str):
-    """Retrieves list of sub folders for a given folder in a s3 bucket
+def append_to_csv(data: list, year: int = None, month: int = None):
+    """
+    Export filenames to a csv file for analysis. If year and month are supplied
+    filenams are appended to csv file otherwise headers are appended at the beginnign of the file.
 
     Args:
-        prefix (str): folder prefix in a s3 bucket
-
-    Returns:
-        list: list of sub folders
+        data (list): List of filenames
+        year (int, optional): Year to which filenames belongs to. Defaults to None.
+        month (int, optional): Month to which filenames belongs to. Defaults to None.
     """
-    response = client.list_objects_v2(
-        Bucket=config.BUCKET,
-        Prefix=prefix,
-        Delimiter="/",
-    )
-    prefixes = []
-    if "CommonPrefixes" in response:
-        prefixes = [prefix["Prefix"] for prefix in response["CommonPrefixes"]]
-    return prefixes
+    if len(data) > 0:
+        mode = "w" if not year else "a"
+        with open("filenames.csv", mode, newline="") as file:
+            writer = csv.writer(file)
+            if not year:
+                writer.writerow(data)
+            else:
+                yyyymm = f"{year}{str(month).zfill(2)}"
+                writer.writerow([yyyymm])
+                for filename in data:
+                    writer.writerow([filename])
 
 
-def folder_path(prefix: str):
-    """Retrieves folder name from s3 bucket folder path
-
-    Args:
-        prefix (str): Folder path
-
-    Returns:
-        str: Folder name from a given path
-    """
-    (abs_path, _) = os.path.split(prefix)
-    dir = os.path.basename(abs_path)
-    return dir
-
-
-def list_objects(prefix: str):
+def list_s3_objects(prefix: str):
     """Retrieves a list of s3 objects in a given folder
 
     Args:
@@ -81,7 +70,7 @@ def extract_s3_objects(date: datetime):
         + str(date.day).zfill(2)
         + "/"
     )
-    objects = list_objects(prefix)
+    objects = list_s3_objects(prefix)
     return objects
 
 
@@ -106,6 +95,7 @@ def extract_filenames_with_pattern(date: datetime):
             objects = extract_s3_objects(next_day)
             if len(objects) <= 0:
                 print("Files not found for next available date: ", next_day.date())
+                print("Extracting files for previous date: ", prev_day.date())
                 objects = extract_s3_objects(prev_day)
         else:
             print("Extracting files for previous date: ", prev_day.date())
@@ -115,37 +105,55 @@ def extract_filenames_with_pattern(date: datetime):
         matched = [os.path.basename(obj).split(".")[0] for obj in objects if pat in obj]
         filtered_list.extend(matched)
     print(
-        "Found files ",
-        filtered_list,
-        " with pattern ",
+        "================================================================================================="
+    )
+    print(
+        "List of below grids found with pattern",
         config.PATTERN,
-        " for given date: ",
+        " for date ",
         date.date(),
+    )
+    for item in filtered_list:
+        print(item)
+    print(
+        "================================================================================================="
     )
     return filtered_list
 
 
-def export_to_csv(data: list, year: int = None, month: int = None):
+def folder_name_from_path(prefix: str):
     """
-    Export filenames to a csv file for analysis. If year and month are supplied
-    filenams are appended to csv file otherwise headers are appended at the beginnign of the file.
+    Retrieves folder name from s3 bucket folder path
 
     Args:
-        data (list): List of filenames
-        year (int, optional): Year to which filenames belongs to. Defaults to None.
-        month (int, optional): Month to which filenames belongs to. Defaults to None.
+        prefix (str): Folder path
+
+    Returns:
+        str: Folder name from a given path
     """
-    if len(data) > 0:
-        mode = "w" if not year else "a"
-        with open("filenames.csv", mode, newline="") as file:
-            writer = csv.writer(file)
-            if not year:
-                writer.writerow(data)
-            else:
-                yyyymm = f"{year}{str(month).zfill(2)}"
-                writer.writerow([yyyymm])
-                for filename in data:
-                    writer.writerow([filename])
+    (abs_path, _) = os.path.split(prefix)
+    dir = os.path.basename(abs_path)
+    return dir
+
+
+def list_sub_folders(prefix: str):
+    """Retrieves list of sub folders for a given folder in a s3 bucket
+
+    Args:
+        prefix (str): folder prefix in a s3 bucket
+
+    Returns:
+        list: list of sub folders
+    """
+    response = client.list_objects_v2(
+        Bucket=config.BUCKET,
+        Prefix=prefix,
+        Delimiter="/",
+    )
+    prefixes = []
+    if "CommonPrefixes" in response:
+        prefixes = [prefix["Prefix"] for prefix in response["CommonPrefixes"]]
+    return prefixes
 
 
 def every_fifth_day_of_every_month_in_a_year(year: int):
@@ -158,10 +166,10 @@ def every_fifth_day_of_every_month_in_a_year(year: int):
     """
 
     # Retrieves monthly prefixes from S3 bucket for a given year
-    monthly_prefixes = prefix_list(config.PREFIX + str(year) + "/")
+    monthly_prefixes = list_sub_folders(config.PREFIX + str(year) + "/")
 
     # Retrieves list of months from the prefixes
-    months = [int(folder_path(prefix)) for prefix in monthly_prefixes]
+    months = [int(folder_name_from_path(prefix)) for prefix in monthly_prefixes]
 
     for month in months:
         filenames = []
@@ -175,8 +183,8 @@ def every_fifth_day_of_every_month_in_a_year(year: int):
                 current_date = datetime(year, month, last_day[1])
             extracted = extract_filenames_with_pattern(current_date)
             filenames.extend(extracted)
-        print(f"Exporting data for yyyymm: {year}{month}")
-        export_to_csv(filenames, year, month)
+        print(f"Exporting data for YYYYMM: {year}{month}")
+        append_to_csv(filenames, year, month)
 
 
 def execute():
@@ -184,10 +192,10 @@ def execute():
     Starts the script to retrieve grid filenames for sudan flood analysis
     """
     # Add CSV headers to the file
-    export_to_csv(["Filenames"])
-    yearly_prefixes = prefix_list(config.PREFIX)
+    append_to_csv(["Filenames"])
+    yearly_prefixes = list_sub_folders(config.PREFIX)
     for prefix in yearly_prefixes:
-        year = int(folder_path(prefix))
+        year = int(folder_name_from_path(prefix))
         every_fifth_day_of_every_month_in_a_year(year)
 
 
