@@ -1,39 +1,9 @@
-import logging
 import os
 import boto3
 import calendar
 import csv
 from datetime import datetime, timedelta
-
-logger = logging.getLogger(__name__)
-
-# S3 Bucket
-BUCKET = "noaa-jpss"
-
-# Base path prefix for s3 bucket where data is available
-PREFIX = "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/"
-
-# Grid patterns to filter objects from the bucket list
-PATTERN = ["GLB085", "GLB086"]
-
-# CSV Headers
-HEADERS = ["Filenames"]
-
-# yearly_prefixes = [
-# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2012/",
-# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2013/",
-# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2014/",
-# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2015/",
-# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2016/",
-# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2017/",
-# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2018/",
-# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2019/",
-# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2020/",
-# "JPSS_Blended_Products/VFM_5day_GLB/ShapeZIP/2023/",
-# ]
-
-# list of every fice days in a month
-days = [5, 10, 15, 20, 25, 30]
+from conf import config
 
 # S3 client for API operations
 client = boto3.client("s3")
@@ -49,7 +19,7 @@ def prefix_list(prefix: str):
         list: list of sub folders
     """
     response = client.list_objects_v2(
-        Bucket=BUCKET,
+        Bucket=config.BUCKET,
         Prefix=prefix,
         Delimiter="/",
     )
@@ -83,7 +53,7 @@ def list_objects(prefix: str):
         list: List of s3 objects
     """
     response = client.list_objects_v2(
-        Bucket=BUCKET,
+        Bucket=config.BUCKET,
         Prefix=prefix,
         Delimiter="/",
     )
@@ -101,9 +71,9 @@ def extract_s3_objects(date: datetime):
     Returns:
         list: List of s3 objects for a given datetime object
     """
-    print("Extracting file patterns ", PATTERN, " for given date: ", date.date())
+    print("Extracting file patterns ", config.PATTERN, " for given date: ", date.date())
     prefix = (
-        PREFIX
+        config.PREFIX
         + str(date.year)
         + "/"
         + str(date.month).zfill(2)
@@ -116,13 +86,13 @@ def extract_s3_objects(date: datetime):
 
 
 def extract_filenames_with_pattern(date: datetime):
-    """_summary_
-
+    """
+    Filters filenames based on the grid patterns passed
     Args:
-        date (datetime): _description_
+        date (datetime): Datetime for filename
 
     Returns:
-        _type_: _description_
+        list: List of filtered grid filenames
     """
     objects = extract_s3_objects(date)
     filtered_list = []
@@ -141,14 +111,14 @@ def extract_filenames_with_pattern(date: datetime):
             print("Extracting files for previous date: ", prev_day.date())
             objects = extract_s3_objects(prev_day)
 
-    for pat in PATTERN:
+    for pat in config.PATTERN:
         matched = [os.path.basename(obj).split(".")[0] for obj in objects if pat in obj]
         filtered_list.extend(matched)
     print(
         "Found files ",
         filtered_list,
         " with pattern ",
-        PATTERN,
+        config.PATTERN,
         " for given date: ",
         date.date(),
     )
@@ -188,14 +158,14 @@ def every_fifth_day_of_every_month_in_a_year(year: int):
     """
 
     # Retrieves monthly prefixes from S3 bucket for a given year
-    monthly_prefixes = prefix_list(PREFIX + str(year) + "/")
+    monthly_prefixes = prefix_list(config.PREFIX + str(year) + "/")
 
     # Retrieves list of months from the prefixes
     months = [int(folder_path(prefix)) for prefix in monthly_prefixes]
 
     for month in months:
         filenames = []
-        for day in days:
+        for day in config.DAYS:
             try:
                 # Calculate every fifthe day of the month
                 current_date = datetime(year, month, day)
@@ -213,8 +183,9 @@ def execute():
     """
     Starts the script to retrieve grid filenames for sudan flood analysis
     """
-    export_to_csv(HEADERS)
-    yearly_prefixes = prefix_list(PREFIX)
+    # Add CSV headers to the file
+    export_to_csv(["Filenames"])
+    yearly_prefixes = prefix_list(config.PREFIX)
     for prefix in yearly_prefixes:
         year = int(folder_path(prefix))
         every_fifth_day_of_every_month_in_a_year(year)
