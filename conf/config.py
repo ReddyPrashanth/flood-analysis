@@ -9,3 +9,7 @@ PATTERN = ["GLB085", "GLB086"]
 
 # list of every nth days in a month
 DAYS = [5, 10, 15, 20, 25, 30]
+
+
+AWS_ACCESS_KEY_ID = None
+AWS_SECRET_ACCESS_KEY = None

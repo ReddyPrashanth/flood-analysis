@@ -6,7 +6,11 @@ from datetime import datetime, timedelta
 from conf import config
 
 # S3 client for API operations
-client = boto3.client("s3")
+client = boto3.client(
+    "s3",
+    aws_access_key_id=config.AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=config.AWS_SECRET_ACCESS_KEY,
+)
 
 
 def append_to_csv(data: list, year: int = None, month: int = None):
@@ -30,6 +34,24 @@ def append_to_csv(data: list, year: int = None, month: int = None):
                 writer.writerow([yyyymm])
                 for filename in data:
                     writer.writerow([filename])
+
+
+def add_missing_data(data: list, year: int = None, month: int = None):
+    """
+    Export filenames to a csv file for analysis. If year and month are supplied
+    filenams are appended to csv file otherwise headers are appended at the beginnign of the file.
+
+    Args:
+        data (list): List of filenames
+        year (int, optional): Year to which filenames belongs to. Defaults to None.
+        month (int, optional): Month to which filenames belongs to. Defaults to None.
+    """
+    with open("missing_filenames.csv", "a", newline="") as file:
+        writer = csv.writer(file)
+        yyyymm = f"{year}{str(month).zfill(2)}"
+        writer.writerow([yyyymm])
+        for filename in data:
+            writer.writerow([filename])
 
 
 def list_s3_objects(prefix: str):
@@ -104,20 +126,20 @@ def extract_filenames_with_pattern(date: datetime):
     for pat in config.PATTERN:
         matched = [os.path.basename(obj).split(".")[0] for obj in objects if pat in obj]
         filtered_list.extend(matched)
-    print(
-        "================================================================================================="
-    )
-    print(
-        "List of below grids found with pattern",
-        config.PATTERN,
-        " for date ",
-        date.date(),
-    )
-    for item in filtered_list:
-        print(item)
-    print(
-        "================================================================================================="
-    )
+    # print(
+    #     "================================================================================================="
+    # )
+    # print(
+    #     "List of below grids found with pattern",
+    #     config.PATTERN,
+    #     " for date ",
+    #     date.date(),
+    # )
+    # for item in filtered_list:
+    #     print(item)
+    # print(
+    #     "================================================================================================="
+    # )
     return filtered_list
 
 
@@ -185,6 +207,12 @@ def every_fifth_day_of_every_month_in_a_year(year: int):
             filenames.extend(extracted)
         print(f"Exporting data for YYYYMM: {year}{month}")
         append_to_csv(filenames, year, month)
+        expected_file_count = len(config.DAYS) * len(config.PATTERN)
+        actual_count = len(filenames)
+        if actual_count < expected_file_count and actual_count > 0:
+            print(f"Expected file count: {expected_file_count}")
+            print(f"Actual file count: {actual_count}")
+            add_missing_data(filenames, year, month)
 
 
 def execute():
