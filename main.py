@@ -1,3 +1,20 @@
+"""
+Title: Sudan Flood Analysis: S3 Bucket Object Extractor
+Author: Prashanth Sreepathi
+Email: your.email@example.com
+Date: 2024-07-24
+Description: This Python script extracts objects from an Amazon S3 bucket that match a specific file pattern. It is specifically designed for use in Sudan flood analysis, utilizing the boto3 library to interact with AWS S3 services.
+
+Usage:
+    python main.py
+
+Dependencies:
+    - boto3
+
+Installation:
+    pip install -r requirements.txt
+"""
+
 import os
 import boto3
 import calendar
@@ -36,15 +53,15 @@ def append_to_csv(data: list, year: int = None, month: int = None):
                     writer.writerow([filename])
 
 
-def add_missing_data(data: list, year: int = None, month: int = None):
+def add_missing_data(data: list, year: int, month: int):
     """
-    Export filenames to a csv file for analysis. If year and month are supplied
-    filenams are appended to csv file otherwise headers are appended at the beginnign of the file.
+    Export missing dates to a csv file  where data is not available and list available filenames
+    for each month so that it is useful to find out exact dates missing and can be useful for manually corrections
 
     Args:
         data (list): List of filenames
-        year (int, optional): Year to which filenames belongs to. Defaults to None.
-        month (int, optional): Month to which filenames belongs to. Defaults to None.
+        year (int, optional): Year to which filenames belongs to.
+        month (int, optional): Month to which filenames belongs to.
     """
     with open("missing_filenames.csv", "a", newline="") as file:
         writer = csv.writer(file)
@@ -126,20 +143,20 @@ def extract_filenames_with_pattern(date: datetime):
     for pat in config.PATTERN:
         matched = [os.path.basename(obj).split(".")[0] for obj in objects if pat in obj]
         filtered_list.extend(matched)
-    # print(
-    #     "================================================================================================="
-    # )
-    # print(
-    #     "List of below grids found with pattern",
-    #     config.PATTERN,
-    #     " for date ",
-    #     date.date(),
-    # )
-    # for item in filtered_list:
-    #     print(item)
-    # print(
-    #     "================================================================================================="
-    # )
+    print(
+        "================================================================================================="
+    )
+    print(
+        "List of below grids found with pattern",
+        config.PATTERN,
+        " for date ",
+        date.date(),
+    )
+    for item in filtered_list:
+        print(item)
+    print(
+        "================================================================================================="
+    )
     return filtered_list
 
 
