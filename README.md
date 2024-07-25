@@ -7,6 +7,7 @@
 - [Configuration](#configiration)
 - [Example](#example)
 - [Requirements](#requirements)
+- [Outputs](#outputs)
 
 ## Installation
 
@@ -81,3 +82,16 @@ Here is an example of how to use the script:
 - Python virtual environment
 - boto3 library
 - AWS ACCESS_KEY and SECRET_KEY for the S3 bucket
+
+## Outputs
+
+1. Python script generates two outputs files listed below.
+
+   ```
+      1. filenames.csv
+      2. missing_filenames.csv
+   ```
+
+2. **filenames.csv** contains list of filenames for every 5 days in a month every year from noaa-jpss bucket.
+
+3. **missing_filenames.csv** contains list of missing dates where data is not available and list available filenames for each month so that it is useful to find out exact dates missing and can be useful for manually corrections.
