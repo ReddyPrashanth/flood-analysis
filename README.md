@@ -40,12 +40,12 @@ To run this script, ensure you have Python installed on your machine. You will a
 
 ## Usage
 
-1. AWS Credentials: Ensure your AWS credentials are configured properly. You can configure them by setting environemnt variables.
+1. AWS Credentials: Ensure your AWS credentials are configured properly. You can configure them by setting below config variables in config.py file.
 
    ```
-   > export AWS_ACCESS_KEY_ID='YOUR_ACCESS_KEY'
+   > AWS_ACCESS_KEY_ID='YOUR_ACCESS_KEY'
 
-   > export AWS_SECRET_ACCESS_KEY='YOUR_SECRET_KEY'
+   > AWS_SECRET_ACCESS_KEY='YOUR_SECRET_KEY'
    ```
 
 2. Running the Script: Use the following command to run the script.
